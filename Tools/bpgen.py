@@ -17,6 +17,7 @@ Reconstruido el 2026-08-26 (el bpgen.py original se perdio con Tools/).
 """
 
 import hashlib
+import re
 
 # --------------------------------------------------------------- utilidades
 
@@ -43,6 +44,16 @@ def obj(kind, path):
 
 def esc(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _ruta_pelada(v):
+    """Acepta Class'"/ruta"', "/ruta" o /ruta y devuelve siempre "/ruta"."""
+    v = str(v).strip()
+    m = re.match(r"^\w+'\"?(.*?)\"?'$", v)
+    if m:
+        v = m.group(1)
+    v = v.strip('"')
+    return '"%s"' % v
 
 
 # ------------------------------------------------------------------- pines
@@ -123,7 +134,20 @@ class Pin(object):
             # pegar, en silencio. Asi se perdieron los 5 SetText.
             # Ambas medidas el 2026-08-27.
             if self.category in (CAT_OBJECT, CAT_CLASS):
-                p.append('DefaultObject=%s' % self.default)
+                # TRAMPA 3: DefaultObject quiere la RUTA PELADA entre comillas
+                #   DefaultObject="/Script/AIModule.AISense_Sight"
+                # NO el envoltorio Kind'"ruta"' que usa PinSubCategoryObject.
+                # Con el envoltorio, el importador suelta
+                #   Missing opening '"' in string property value
+                #   Warning: B: Parse error while importing property values
+                # y a continuacion revienta un ensure en EdGraphUtilities.cpp
+                # (ThisPin), que ABORTA EL EMPAREJADO DE PINES DEL PEGADO
+                # ENTERO: los 194 nodos entran pero se quedan con enlaces
+                # colgados y el compilador escupe "El pin en uso <Unnamed> ya
+                # no existe en el nodo Ev_*" para cada llamada a evento.
+                # Un solo pin mal escrito tumba todo el grafo.
+                # Medido el 2026-08-31.
+                p.append('DefaultObject=%s' % _ruta_pelada(self.default))
             elif self.category == CAT_TEXT:
                 p.append('DefaultTextValue=NSLOCTEXT("", "", "%s")'
                          % esc(str(self.default)))
