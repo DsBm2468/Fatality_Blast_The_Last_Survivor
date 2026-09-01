@@ -747,6 +747,32 @@ def paso_reset():
 
 PASOS["reset"] = paso_reset
 
+
+def paso_restaurar():
+    """Devuelve los emisores a AutoFire para dejar el nivel como estaba.
+
+    La fase 0 los apaga en el mundo de EDITOR (es la unica forma de que no
+    disparen en PIE), y eso marca Lvl_02_TestLab como sucio. Si algo lo guarda,
+    el laboratorio se queda con los emisores mudos y el guion de pruebas a mano
+    de LAB_DE_PRUEBAS.md seccion 9 deja de funcionar. Paso obligatorio al cerrar."""
+    les = unreal.get_editor_subsystem(unreal.LevelEditorSubsystem)
+    if les.is_in_play_in_editor():
+        nota("restaurar: sigue en PIE, no se toca el mundo de editor")
+        return
+    ss = unreal.get_editor_subsystem(unreal.EditorActorSubsystem)
+    n = 0
+    for a in ss.get_all_level_actors():
+        if a.get_class().get_name() == "BP_TestDamageDealer_C":
+            try:
+                a.set_editor_property("AutoFire", True)
+                n += 1
+            except Exception:
+                pass
+    check("cierre", "emisores devueltos a AutoFire", n >= 8, "%d emisores" % n)
+
+
+PASOS["restaurar"] = paso_restaurar
+
 # ------------------------------------------------------------- ejecucion
 with open(PASO_TXT, encoding="utf-8") as f:
     _paso = f.read().strip()

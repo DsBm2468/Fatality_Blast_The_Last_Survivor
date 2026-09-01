@@ -100,7 +100,7 @@ BLOQUES = [
     ("caso 11 - reflejo", [
         ("c11_montar", 1), ("c11_golpe", 1.2), ("c11_check", 0)]),
 
-    ("cierre", [("pie_off", 1), ("informe", 0)]),
+    ("cierre", [("pie_off", 3), ("restaurar", 0), ("informe", 0)]),
 ]
 
 
