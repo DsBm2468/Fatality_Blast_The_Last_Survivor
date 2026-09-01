@@ -21,10 +21,22 @@ def parse(path):
         m=re.match(r'Begin Object (?:Class=([\w/\.]+) )?Name="([^"]+)"', s)
         if m:
             cls=(m.group(1) or '').split('.')[-1]; nm=m.group(2)
-            if cls=='EdGraph' or (not cls and nm in graphs):
+            # OJO: un grafo-stub de evento y su nodo se llaman IGUAL
+            # (p.ej. Interact_1_1). Si al reabrir el bloque sin Class= se
+            # interpreta como cambio de grafo, se pierde ese nodo Y todos
+            # los que vengan detras. Medido el 2026-08-31.
+            ya_es_nodo = curg is not None and nm in graphs.get(curg, {})
+            if cls=='EdGraph' or (not cls and nm in graphs and not ya_es_nodo):
                 curg=nm; graphs.setdefault(curg, collections.OrderedDict()); curn=None
             elif curg is not None:
-                if cls: graphs[curg][nm]={'class':cls,'props':{},'pins':[]}
+                # OJO: el export declara cada nodo DOS veces, primero un stub
+                # vacio y luego el bloque con props y pines. Recrear la entrada
+                # en la segunda vuelta borraba los pines y hacia parecer que el
+                # nodo no tenia ninguno. Medido el 2026-08-31.
+                if cls and nm not in graphs[curg]:
+                    graphs[curg][nm]={'class':cls,'props':{},'pins':[]}
+                elif cls:
+                    graphs[curg][nm]['class']=cls
                 curn=nm if nm in graphs[curg] else None
             continue
         if s.startswith('End Object'): continue
