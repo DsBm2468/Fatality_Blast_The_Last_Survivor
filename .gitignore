@@ -76,3 +76,7 @@ DerivedDataCache/*
 
 # Cache de Python de las herramientas
 Tools/__pycache__/
+
+# Estado efimero del banco de pruebas
+Tools/_paso.txt
+Saved/_lab_state.json
