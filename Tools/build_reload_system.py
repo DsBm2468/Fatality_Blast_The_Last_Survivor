@@ -110,12 +110,16 @@ for ruta, cargador, reserva, t_recarga in ARMAS:
         log(False, "no existe " + ruta)
         continue
     add_var(bp, "MunitionReserve", T_INT, reserva, editable=True)
-    add_var(bp, "IsReloading", T_BOOL, False)
+    add_var(bp, "IsReloading", T_BOOL, False, editable=True)
     add_var(bp, "ReloadAmount", T_INT, 0)
     add_var(bp, "ReloadTime", T_DOUBLE, t_recarga, editable=True)
     # valores del GDD en lo que ya existia
     for nombre, val in (("MaxMunition", cargador), ("CurrentMunition", cargador)):
         if tiene(bp, nombre):
+            try:
+                BEL.set_blueprint_variable_instance_editable(bp, nombre, True)
+            except Exception as e:
+                log(False, "%s.%s no se pudo hacer editable (%s)" % (bp.get_name(), nombre, e))
             try:
                 cdo(bp).set_editor_property(nombre, val)
                 log(True, "%s.%s = %r" % (bp.get_name(), nombre, cdo(bp).get_editor_property(nombre)))
