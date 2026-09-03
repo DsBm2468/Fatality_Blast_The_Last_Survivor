@@ -433,6 +433,67 @@ class Graph(object):
         n.pin("ReturnValue", CAT_BYTE, out=True, sub_object=obj("Enum", enum_path))
         return n
 
+    def node_sequence(self, x=0, y=0, n=2):
+        """Nodo Sequence: una entrada, N salidas que se ejecutan en orden.
+
+        Util para que un bucle sobreviva a un salto: si la rama que se
+        reprograma va en then_0 y lleva un Delay (que es latente y cede el
+        control), then_1 puede saltar a otro evento sin matar el bucle.
+        """
+        node = Node(self, "K2Node_ExecutionSequence",
+                    self._auto("K2Node_ExecutionSequence"), x, y)
+        node.pin("execute", CAT_EXEC)
+        for i in range(n):
+            node.pin("then_%d" % i, CAT_EXEC, out=True)
+        return node
+
+    MACROS_ESTANDAR = "/Engine/EditorBlueprintResources/StandardMacros.StandardMacros"
+
+    def macro(self, nombre_macro, x=0, y=0):
+        """Instancia de una macro de la biblioteca estandar (ForEachLoop,
+        IsValid, DoOnce...).
+
+        La referencia lleva DOS rutas y las dos van con el envoltorio entre
+        comillas dobles, tal y como las escribe el exportador:
+            MacroGraphReference=(
+              MacroGraph="/Script/Engine.EdGraph'<biblioteca>:<Macro>'",
+              GraphBlueprint="/Script/Engine.Blueprint'<biblioteca>'")
+        Los pines NO se reconstruyen solos como en K2Node_CallFunction: hay
+        que declararlos todos, y con el nombre exacto (ojo a los que llevan
+        espacio, como "Array Element").
+        """
+        lib = self.MACROS_ESTANDAR
+        return Node(self, "K2Node_MacroInstance",
+                    self._auto("K2Node_MacroInstance"), x, y, {
+                        "MacroGraphReference":
+                            '(MacroGraph="/Script/Engine.EdGraph\'%s:%s\'",'
+                            'GraphBlueprint="/Script/Engine.Blueprint\'%s\'")'
+                            % (lib, nombre_macro, lib),
+                    })
+
+    def for_each(self, x=0, y=0, category=CAT_OBJECT, sub_object=None):
+        """ForEachLoop sobre un array. Pines: Exec / Array -> LoopBody +
+        'Array Element' + 'Array Index', y Completed al terminar."""
+        n = self.macro("ForEachLoop", x, y)
+        n.pin("Exec", CAT_EXEC)
+        n.pin("Array", category, sub_object=sub_object, container="Array")
+        n.pin("LoopBody", CAT_EXEC, out=True)
+        n.pin("Array Element", category, out=True, sub_object=sub_object)
+        n.pin("Array Index", CAT_INT, out=True)
+        n.pin("Completed", CAT_EXEC, out=True)
+        return n
+
+    def is_valid(self, x=0, y=0, sub_object=None):
+        """Macro IsValid. Pines: Exec / InputObject -> 'Is Valid' +
+        'Is Not Valid'."""
+        n = self.macro("IsValid", x, y)
+        n.pin("Exec", CAT_EXEC)
+        n.pin("InputObject", CAT_OBJECT,
+              sub_object=sub_object or cls("/Script/CoreUObject.Object"))
+        n.pin("Is Valid", CAT_EXEC, out=True)
+        n.pin("Is Not Valid", CAT_EXEC, out=True)
+        return n
+
     def input_action(self, input_action_ref, x=0, y=0):
         """Nodo de Enhanced Input (el de los cinco triangulos: Triggered,
         Started, Ongoing, Canceled, Completed).

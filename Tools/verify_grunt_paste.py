@@ -139,10 +139,36 @@ def params_de_funcion(class_path, fn):
             m = re.search(r'\(([^)]*)\)', doc)
             if not m:
                 return None
-            return {p.split("=")[0].strip().lstrip("*")
-                    for p in m.group(1).split(",") if p.strip()}
-        return {p for p in sig.parameters if p not in ("self", "args", "kwargs")}
+            entradas = {p.split("=")[0].strip().lstrip("*")
+                        for p in m.group(1).split(",") if p.strip()}
+            # Esta es la rama que se usa de verdad: inspect.signature no sabe
+            # leer los bindings de UE y suelta ValueError, asi que casi todo
+            # cae aqui. Sin unir las salidas, los pines de out-param se daban
+            # por invalidos.
+            return entradas | _salidas_de(f)
+        nombres = {p for p in sig.parameters
+                   if p not in ("self", "args", "kwargs")}
+        return nombres | _salidas_de(f)
     return None
+
+
+def _salidas_de(f):
+    """Nombres de los parametros de SALIDA, sacados del bloque 'Returns:' del
+    docstring del binding.
+
+    inspect.signature solo ve las entradas, asi que sin esto el verificador
+    daba por invalidos pines legitimos como 'OutActors' de GetAllActorsWithTag
+    o 'Distance' de FindNearestActor (3 falsos positivos el 2026-09-03).
+    El binding los documenta asi:
+        Returns:
+            float: Nearest Actor.
+            distance (float): Distance from Origin
+    """
+    doc = getattr(f, "__doc__", "") or ""
+    i = doc.find("Returns:")
+    if i < 0:
+        return set()
+    return set(re.findall(r'^\s+(\w+)\s*\(', doc[i:], re.M))
 
 
 def existe_propiedad(class_path, prop):
