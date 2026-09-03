@@ -198,6 +198,27 @@ def vars_de(bp_path):
 CDO_AIC = vars_de("/Game/ThirdPerson/AI/BP_GruntAIController")
 CDO_GRUNT = vars_de("/Game/ThirdPerson/Blueprints/BP_Grunt")
 
+# A que Blueprint va cada pegado. Sin esto el verificador daba por rotas todas
+# las variables propias de cualquier pegado que no fuese del controlador de la
+# IA, que es para lo que se escribio (29 falsos positivos el 2026-09-03).
+DESTINO = [
+    ("Grunt_Muerte", "/Game/ThirdPerson/Blueprints/BP_Grunt"),
+    ("20_Gun_", "/Game/ThirdPerson/Blueprints/Interactables/BP_ConventionalGun"),
+    ("21_Ammo_", "/Game/ThirdPerson/Blueprints/Interactables/BP_MunitionConventionalGun"),
+    ("22_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
+]
+_CACHE = {}
+
+
+def cdo_para(fichero):
+    """Devuelve (cdo, nombre_legible) del Blueprint destino del pegado."""
+    for marca, ruta in DESTINO:
+        if marca in fichero:
+            if ruta not in _CACHE:
+                _CACHE[ruta] = vars_de(ruta)
+            return _CACHE[ruta], ruta.rsplit("/", 1)[-1]
+    return CDO_AIC, "BP_GruntAIController"
+
 # eventos personalizados definidos por los propios pegados: se recopilan
 # primero para no dar por rota una llamada a un evento que llega en otro fichero
 EVENTOS = set()
@@ -236,8 +257,7 @@ else:
         bloques = RE_OBJ.findall(txt)
         say("")
         say("-- %s  (%d nodos) --" % (fichero, len(bloques)))
-        es_grunt = "Grunt_Muerte" in fichero
-        cdo_propio = CDO_GRUNT if es_grunt else CDO_AIC
+        cdo_propio, nombre_destino = cdo_para(fichero)
 
         # ---- LA COMPROBACION MAS IMPORTANTE: la clase del nodo existe?
         # Si no existe, el nodo NO se crea al pegar y se pierden en silencio
@@ -342,10 +362,8 @@ else:
                         try:
                             cdo_propio.get_editor_property(pr)
                         except Exception:
-                            mal("%s: la variable propia '%s' no existe%s"
-                                % (name, pr,
-                                   " en BP_Grunt" if es_grunt
-                                   else " en BP_GruntAIController"))
+                            mal("%s: la variable propia '%s' no existe en %s"
+                                % (name, pr, nombre_destino))
 
             # ---- structs
             if kind in ("K2Node_MakeStruct", "K2Node_BreakStruct"):

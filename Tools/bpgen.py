@@ -433,6 +433,29 @@ class Graph(object):
         n.pin("ReturnValue", CAT_BYTE, out=True, sub_object=obj("Enum", enum_path))
         return n
 
+    def input_action(self, input_action_ref, x=0, y=0):
+        """Nodo de Enhanced Input (el de los cinco triangulos: Triggered,
+        Started, Ongoing, Canceled, Completed).
+
+        OJO con dos cosas:
+        - la clase vive en el modulo InputBlueprintNodes, no en BlueprintGraph;
+        - la propiedad InputAction quiere la forma con envoltorio y comillas
+          dobles por fuera, tal y como la escribe el exportador:
+          InputAction="/Script/EnhancedInput.InputAction'/Game/.../IA_X.IA_X'"
+          (no es el mismo formato que DefaultObject, que va pelado).
+        """
+        n = Node(self, "K2Node_EnhancedInputAction",
+                 self._auto("K2Node_EnhancedInputAction"), x, y, {
+                     "InputAction": '"%s"' % input_action_ref,
+                 }, module="InputBlueprintNodes")
+        for salida in ("Triggered", "Started", "Ongoing", "Canceled", "Completed"):
+            n.pin(salida, CAT_EXEC, out=True)
+        n.pin("ActionValue", CAT_STRUCT, out=True,
+              sub_object=obj("ScriptStruct", "/Script/EnhancedInput.InputActionValue"))
+        n.pin("ElapsedSeconds", CAT_REAL, out=True, sub="double")
+        n.pin("TriggeredSeconds", CAT_REAL, out=True, sub="double")
+        return n
+
     def comment(self, texto, x, y, w, h, color="(R=0.000000,G=0.000000,B=0.000000,A=0.400000)"):
         n = Node(self, "EdGraphNode_Comment", self._auto("EdGraphNode_Comment"), x, y, {
             "NodeWidth": str(w),
