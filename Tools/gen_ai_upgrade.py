@@ -478,24 +478,21 @@ def generar():
     Y = 5600
     ev_cov = g.custom_event("Ev_TakeCover", 0, Y)
 
-    # sin coberturas cacheadas no hay nada que hacer: vuelve al bucle
-    cps = g.var_get("CoverPoints", CAT_OBJECT, 260, Y + 320,
-                    sub_object=cls(C_ACTOR), container="Array")
-    largo = g.call("Array_Length", C_ARR, 500, Y + 320, pure=True)
-    largo.pin("TargetArray", CAT_OBJECT, sub_object=cls(C_ACTOR), container="Array")
-    largo.pin("ReturnValue", CAT_INT, out=True)
-    cps.get("CoverPoints").to(largo.get("TargetArray"))
-    hay = g.call("Greater_IntInt", C_KML, 740, Y + 320, pure=True)
-    hay.pin("A", CAT_INT)
-    hay.pin("B", CAT_INT, default="0")
-    hay.pin("ReturnValue", CAT_BOOL, out=True)
-    largo.get("ReturnValue").to(hay.get("A"))
-
-    br_hay = g.branch(300, Y)
-    ev_cov.get("then").to(br_hay.get("execute"))
-    hay.get("ReturnValue").to(br_hay.get("Condition"))
-    volver1 = g.call_self("Ev_AimWatch", C_AICTRL, 560, Y - 220)
-    br_hay.get("else").to(volver1.get("execute"))
+    # NO hace falta comprobar que el array tenga elementos: FindNearestActor
+    # sobre un array vacio devuelve None, y el IsValid de mas abajo ya manda
+    # de vuelta al bucle. El guardia con Array_Length que habia aqui sobraba
+    # Y ADEMAS no compilaba, por la trampa de la linea siguiente.
+    #
+    # TRAMPA (2026-09-04): las funciones de KismetArrayLibrary son nodos de
+    # clase K2Node_CallArrayFunction, NO K2Node_CallFunction. Con la clase
+    # normal el nodo se pega y el cable se conecta, pero el pin TargetArray se
+    # queda en 'wildcard' para siempre y el compilador dice
+    #   "El tipo de Target Array esta sin determinar"
+    # sin explicar por que. Se ve comparando con un Array_Length que ya
+    # funcione en el mismo grafo: ese sale como K2Node_CallArrayFunction.
+    # Si algun dia hace falta un nodo de array aqui:
+    #   g.call("Array_Length", C_ARR, x, y, pure=True,
+    #          node_class="K2Node_CallArrayFunction")
 
     # --- punto de referencia desde el que buscar cobertura
     gp3 = get_grunt(g, 300, Y + 560)
@@ -569,7 +566,7 @@ def generar():
 
     set_cur = g.var_set("CurrentCover", CAT_OBJECT, 620, Y,
                         sub_object=cls(C_ACTOR))
-    br_hay.get("then").to(set_cur.get("execute"))
+    ev_cov.get("then").to(set_cur.get("execute"))
     fna.get("ReturnValue").to(set_cur.get("CurrentCover"))
 
     val = g.is_valid(900, Y, sub_object=cls(C_ACTOR))
