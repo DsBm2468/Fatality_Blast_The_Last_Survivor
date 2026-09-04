@@ -123,6 +123,25 @@ else:
     BEL.compile_blueprint(bp)
     EAL.save_asset(RUTA_GRUNT)
 
+# ============ BP_ThirdPersonCharacter: HaveGun editable por instancia
+# Sin esto no se puede montar el escenario de la prueba automatica: el banco
+# no puede darle un arma al jugador y la deteccion de apuntado, que exige
+# llevarla, nunca se dispara.
+RUTA_PJ = "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"
+bp = EAL.load_asset(RUTA_PJ)
+print("")
+print("=== BP_ThirdPersonCharacter ===")
+if bp is None:
+    log(False, "no existe " + RUTA_PJ)
+else:
+    try:
+        BEL.set_blueprint_variable_instance_editable(bp, "HaveGun", True)
+        BEL.compile_blueprint(bp)
+        EAL.save_asset(RUTA_PJ)
+        log(True, "HaveGun editable por instancia")
+    except Exception as e:
+        log(False, "HaveGun no se pudo hacer editable (%s)" % e)
+
 # ============================== comprobacion: los puntos de cobertura existen
 print("\n=== Puntos de cobertura en el nivel ===")
 try:
