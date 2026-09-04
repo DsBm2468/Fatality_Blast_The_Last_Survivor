@@ -33,6 +33,18 @@ if w is None:
     print("FALLO: no hay mundo de juego (PIE no esta corriendo)")
     raise SystemExit
 
+# GUARDIA DE NIVEL. run_lab_tests.py deja abierto Lvl_02_TestLab, y sin esta
+# comprobacion el banco medía ese mundo en silencio: 2 soldados, 0 coberturas
+# y tres "fallos" que no eran tales (2026-09-04).
+NIVEL = "Lvl_01_MilitaryBase"
+abierto = w.get_name()
+if NIVEL not in abierto:
+    print("FALLO: este banco necesita %s y el mundo abierto es '%s'."
+          % (NIVEL, abierto))
+    print("       Carga el nivel bueno antes:")
+    print("       LevelEditorSubsystem.load_level('/Game/ThirdPerson/%s')" % NIVEL)
+    raise SystemExit
+
 todos = unreal.GameplayStatics.get_all_actors_of_class(w, unreal.Actor)
 grunts = [a for a in todos if a.get_class().get_name() == "BP_Grunt_C"]
 ctrls = [a for a in todos if a.get_class().get_name() == "BP_GruntAIController_C"]
