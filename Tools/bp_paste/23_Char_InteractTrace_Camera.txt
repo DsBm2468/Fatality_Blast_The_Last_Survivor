@@ -1,0 +1,37 @@
+// PEGADO 23 - EL TRAZO DE DETECCION SIGUE AL RATON
+// Destino: BP_ThirdPersonCharacter > EventGraph  (SE ANADE)
+// 
+// Hoy el SphereTrace azul del Tick apunta con GetActorForwardVector,
+// o sea con el cuerpo del personaje: siempre horizontal. Estos dos
+// nodos dan la direccion de la CAMARA, que es hacia donde mira el
+// jugador de verdad.
+// 
+// Al pegar, arrastra la salida de 'Get Forward Vector' hasta el pin A
+// del nodo '*' que multiplica por 200. El cable viejo desde
+// GetActorForwardVector se suelta solo (un pin de ENTRADA de datos
+// solo admite uno).
+Begin Object Class=/Script/BlueprintGraph.K2Node_VariableGet Name="K2Node_VariableGet_tTrace_1"
+   VariableReference=(MemberName="FollowCamera",bSelfContext=True)
+   NodePosX=0
+   NodePosY=0
+   NodeGuid=9589D4BB7A904F26227DAFBDDAF466A0
+   CustomProperties Pin (PinId=87AFE3475042C36226A64C7CC49A0BF4,PinName="FollowCamera",Direction="EGPD_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.CameraComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PinType.bIsUObjectWrapper=False,PinType.bSerializeAsSinglePrecisionFloat=False,LinkedTo=(K2Node_CallFunction_tTrace_2 6211581F53572DB9BA29CFE0904DFA08,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)
+End Object
+Begin Object Class=/Script/BlueprintGraph.K2Node_CallFunction Name="K2Node_CallFunction_tTrace_2"
+   FunctionReference=(MemberParent=Class'"/Script/Engine.SceneComponent"',MemberName="GetForwardVector")
+   NodePosX=260
+   NodePosY=0
+   NodeGuid=E13AE77222F641AD08F12F78772D526F
+   CustomProperties Pin (PinId=6211581F53572DB9BA29CFE0904DFA08,PinName="self",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SceneComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PinType.bIsUObjectWrapper=False,PinType.bSerializeAsSinglePrecisionFloat=False,LinkedTo=(K2Node_VariableGet_tTrace_1 87AFE3475042C36226A64C7CC49A0BF4,),PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)
+   CustomProperties Pin (PinId=70E20E7DCD8629F22CA539A22BBAE968,PinName="ReturnValue",Direction="EGPD_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/CoreUObject.Vector"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PinType.bIsUObjectWrapper=False,PinType.bSerializeAsSinglePrecisionFloat=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)
+End Object
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_tTrace_3"
+   NodeWidth=700
+   NodeHeight=420
+   CommentColor=(R=1.000000,G=0.000000,B=0.600000,A=0.300000)
+   NodeComment="DIRECCION DE LA CAMARA  ->  llevar la salida al pin A del '*' que multiplica por 200 en el trazo del Tick"
+   bCommentBubbleVisible_InDetailsPanel=False
+   NodePosX=-40
+   NodePosY=-180
+   NodeGuid=77427337C1777A2D230E10E1ABE657CD
+End Object

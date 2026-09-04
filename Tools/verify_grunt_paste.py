@@ -232,6 +232,8 @@ DESTINO = [
     ("20_Gun_", "/Game/ThirdPerson/Blueprints/Interactables/BP_ConventionalGun"),
     ("21_Ammo_", "/Game/ThirdPerson/Blueprints/Interactables/BP_MunitionConventionalGun"),
     ("22_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
+    ("23_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
+    ("30_AIC_", "/Game/ThirdPerson/AI/BP_GruntAIController"),
 ]
 _CACHE = {}
 
