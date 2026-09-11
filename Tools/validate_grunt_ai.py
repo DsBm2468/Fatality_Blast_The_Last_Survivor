@@ -94,9 +94,16 @@ say("")
 say("-- 1. BP_GruntAIController --")
 chk(EAL.does_asset_exist(P_AIC), "el asset existe", "no existe " + P_AIC)
 aic = EAL.load_asset(P_AIC)
+# Puesta al dia el 2026-09-05: este validador seguia pidiendo cinco variables
+# que YA NO EXISTEN A PROPOSITO y daba cinco fallos falsos.
+#   ReactionHandle / FireHandle / SearchHandle -> borradas el 2026-08-31 al
+#     elegir nodos Delay en vez de temporizadores (fix_audit_assets.py).
+#   HasSeenPlayer / IsFiring -> nunca se llegaron a usar; el estado vive en
+#     la variable State y el disparo lo lleva Ev_FireLoop.
+# Las que si tienen que estar son las de la IA ampliada del 2026-09-03.
 esperadas_aic = ["GruntPawn", "TargetPlayer", "LastKnownLocation", "PatrolIndex",
-                 "HasSeenPlayer", "IsFiring", "ReactionHandle", "FireHandle",
-                 "SearchHandle"]
+                 "State", "NoiseLocation", "CoverPoints", "CurrentCover",
+                 "IsInCover", "IsFlanker", "BeingAimedAt"]
 check_vars(aic, esperadas_aic, "AIC")
 
 # tipos que get_basic_type_by_name se inventa en silencio
@@ -262,10 +269,15 @@ for g in grunts:
     except Exception:
         sin += 1
 say("  con ruta de patrulla: %d   estaticos: %d" % (con, sin))
-chk(con == 8, "los 8 soldados de E2/E3 tienen ruta",
-    "solo %d soldados con ruta, se esperaban 8" % con)
-chk(sin == 7, "los 7 de la emboscada E1 son estaticos (correcto segun GDD)",
-    "%d estaticos, se esperaban 7" % sin)
+# Puesta al dia el 2026-09-05: los numeros eran de ANTES del Acto 0
+# (2026-09-03), que anadio soldados al sur. Hoy el nivel tiene 20 soldados:
+# 12 con ruta de patrulla y 8 estaticos. Los 8 estaticos son correctos y
+# deliberados: 7 son la emboscada de la mesa redonda del E1 (GDD) y el octavo
+# es el puesto de guardia del Acto 0. Ver el hallazgo B-2 de la auditoria.
+chk(con >= 8, "los soldados de patrulla tienen ruta (%d)" % con,
+    "solo %d soldados con ruta, se esperaban 8 o mas" % con)
+chk(sin == 8, "8 estaticos: los 7 de la emboscada E1 + el guardia del Acto 0",
+    "%d estaticos, se esperaban 8" % sin)
 
 navs = unreal.GameplayStatics.get_all_actors_of_class(w, unreal.NavMeshBoundsVolume)
 chk(len(navs) >= 1, "NavMeshBoundsVolume presente",

@@ -82,7 +82,15 @@ ST_COMBAT = "NewEnumerator3"      # Combat
 ST_SEARCH = "NewEnumerator4"      # Searching
 ST_DEAD = "NewEnumerator5"        # Dead
 
-DMG_CONVENTIONAL = "NewEnumerator0"   # ConventionalBullet
+# TRAMPA MEDIDA EL 2026-09-05: en E_DamageType los nombres internos NO
+# siguen el orden de las entradas. "NewEnumerator0" NO resuelve a ninguna
+# entrada valida (el editor lo pinta como "None"); ConventionalBullet es
+# "NewEnumerator1". Se vio porque el Make S_TakeDamage del soldado salia
+# con Damage Type = None mientras el del jugador, con NewEnumerator1,
+# ponia Conventional Bullet. La API de Python NO puede leer el
+# DisplayNameMap de un UserDefinedEnum, asi que la unica forma de
+# comprobarlo es abrir el nodo en el editor y mirar el desplegable.
+DMG_CONVENTIONAL = "NewEnumerator1"   # ConventionalBullet (verificado)
 REACT_HIT = "NewEnumerator1"          # HitReaction
 
 # Nombres internos de los campos de S_TakeDamage, leidos del .uasset.
