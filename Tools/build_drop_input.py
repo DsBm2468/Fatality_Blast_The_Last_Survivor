@@ -14,8 +14,8 @@ Uso:  python Tools/ue_remote.py Tools/build_drop_input.py
 import unreal
 
 EAL = unreal.EditorAssetLibrary
-RUTA_IA = "/Game/Input/IA_Drop"
-MODELO = "/Game/Input/IA_Heal"       # misma forma: booleana, pulsacion simple
+RUTA_IA = "/Game/Input/Actions/IA_Drop"
+MODELO = "/Game/Input/Actions/IA_Heal"       # misma forma: booleana, pulsacion simple
 IMC = "/Game/Input/IMC_Default"
 TECLA = "F"
 

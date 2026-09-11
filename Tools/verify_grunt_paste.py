@@ -235,6 +235,11 @@ DESTINO = [
     # controlador de la IA por no llevar prefijo numerico conocido (2026-09-08)
     ("_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
     ("30_AIC_", "/Game/ThirdPerson/AI/BP_GruntAIController"),
+    ("_Item_", "/Game/ThirdPerson/Blueprints/Interactables/"
+               "FixedInteractables/BP_Item"),
+    ("_Inventary_", "/Game/ThirdPerson/Components/BPC_Inventary"),
+    ("_Throw", "/Game/ThirdPerson/Blueprints/Interactables/"
+               "FixedInteractables/BP_Item_Throwable_Base"),
 ]
 _CACHE = {}
 
