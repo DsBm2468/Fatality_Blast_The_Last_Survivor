@@ -179,6 +179,12 @@ class Node(object):
         self.props = props or {}
         self.module = module
         self.pins = []
+        # Los parametros de un evento personalizado NO son propiedades ni
+        # pines normales: van en lineas 'CustomProperties UserDefinedPin' que
+        # el exportador escribe DESPUES de los pines. Sin ellas el evento se
+        # pega sin parametros y quien lo llama se queda con los cables al
+        # aire, compilando en verde.
+        self.user_pins = []
         self.guid = guid("%s|%s" % (graph.name, name))
         graph.nodes.append(self)
 
@@ -212,6 +218,8 @@ class Node(object):
         out.append("   NodeGuid=%s" % self.guid)
         for p in self.pins:
             out.append(p.render())
+        for u in self.user_pins:
+            out.append("   " + u)
         out.append("End Object")
         return "\n".join(out)
 
@@ -242,11 +250,35 @@ class Graph(object):
         n.pin("then", CAT_EXEC, out=True)
         return n
 
-    def custom_event(self, event_name, x=0, y=0):
+    def custom_event(self, event_name, x=0, y=0, params=None):
+        """Evento personalizado. 'params' son sus entradas, que en el nodo se
+        dibujan como pines de SALIDA:
+            [(nombre, categoria, sub_object_del_pin, ruta_completa), ...]
+
+        Cada parametro necesita ademas su linea UserDefinedPin; si falta, el
+        evento entra SIN parametros, los nodos que lo llaman se quedan con los
+        cables colgando y el Blueprint compila en verde igualmente.
+
+        OJO con el formato: dentro de UserDefinedPin, PinSubCategoryObject se
+        escribe como cadena entera -- "/Script/Engine.UserDefinedEnum'/Game/..'" --
+        y no con el envoltorio Kind'"ruta"' que usan los pines normales. Por eso
+        'ruta_completa' va aparte.
+        """
         n = Node(self, "K2Node_CustomEvent", self._auto("K2Node_CustomEvent"), x, y, {
             "CustomFunctionName": '"%s"' % event_name,
         })
         n.pin("then", CAT_EXEC, out=True)
+        for entrada in (params or []):
+            nombre, categoria, sub = entrada[0], entrada[1], entrada[2]
+            ruta = entrada[3] if len(entrada) > 3 else None
+            n.pin(nombre, categoria, out=True, sub_object=sub)
+            tipo = 'PinType=(PinCategory="%s"' % categoria
+            if ruta:
+                tipo += ',PinSubCategoryObject="%s"' % ruta
+            tipo += ')'
+            n.user_pins.append(
+                'CustomProperties UserDefinedPin (PinName="%s",%s,'
+                'DesiredPinDirection=EGPD_Output)' % (nombre, tipo))
         return n
 
     def call(self, member_name, parent_class, x=0, y=0, pure=False,

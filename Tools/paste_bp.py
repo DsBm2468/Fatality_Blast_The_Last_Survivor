@@ -121,32 +121,63 @@ def clic(titulo, fx, fy):
     return cod == 0
 
 
-def teclas(vk_seq):
-    """Manda una combinacion con Ctrl: vk_seq son los codigos de tecla."""
-    cmd = ("Add-Type -Namespace W -Name K -MemberDefinition '"
-           "[DllImport(\"user32.dll\")] public static extern void keybd_event("
-           "byte k, byte s, uint f, System.UIntPtr e);';"
-           "[W.K]::keybd_event(0x11,0,0,[UIntPtr]::Zero);")
-    for vk in vk_seq:
-        cmd += ("Start-Sleep -Milliseconds 60;"
-                "[W.K]::keybd_event(%d,0,0,[UIntPtr]::Zero);"
-                "Start-Sleep -Milliseconds 80;"
-                "[W.K]::keybd_event(%d,0,2,[UIntPtr]::Zero);" % (vk, vk))
-    cmd += "[W.K]::keybd_event(0x11,0,2,[UIntPtr]::Zero)"
-    subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                    "-Command", cmd], capture_output=True, text=True)
-    time.sleep(1.0)
+def enviar_tecla(titulo, combo, fx=None, fy=None):
+    """Manda una combinacion al editor. Tiene que salir de paste_win.ps1, que
+    es quien sabe enfocar la ventana: lanzarla desde otro proceso pierde la
+    pulsacion porque la consola que lo lanza se queda con el foco."""
+    args = ["-WindowTitle", titulo, "-Enviar", combo]
+    if fx is not None:
+        args += ["-FracX", str(fx), "-FracY", str(fy), "-Click"]
+    cod, out, err = _ps(args)
+    if cod != 0:
+        print(out)
+        print(err)
+    time.sleep(0.6)
+    return cod == 0
 
 
-def deshacer(n=1):
-    teclas([0x5A] * n)      # Ctrl+Z
+def deshacer(titulo, n=1):
+    for _ in range(n):
+        enviar_tecla(titulo, "ctrl+z", LIENZO[0][0], LIENZO[0][1])
     time.sleep(0.8)
 
 
-def crecio(antes, despues):
-    """Nombre del grafo que gano nodos, o None."""
+def vaciar_grafo(asset, titulo, grafo):
+    """Ctrl+A + Supr en el grafo enfocado, y comprueba que quedo vacio.
+
+    CLAUDE.md daba esto por poco fiable, y lo era: si el foco no esta en el
+    lienzo, Ctrl+A no hace nada y no avisa. Con el foco verificado (ver
+    enfocar()) si es fiable, y aqui ademas se mide el resultado.
+    """
+    antes = censo(asset, "vaciar_antes").get(grafo, 0)
+    for intento in range(3):
+        # Ctrl+A sobre el lienzo. Hace falta el clic para que el panel del
+        # grafo tenga el foco de teclado, igual que para pegar.
+        enviar_tecla(titulo, "ctrl+a", LIENZO[0][0], LIENZO[0][1])
+        enviar_tecla(titulo, "delete")
+        time.sleep(1.2)
+        queda = censo(asset, "vaciar_despues").get(grafo, 0)
+        print("  vaciar %s: %d -> %d nodos" % (grafo, antes, queda))
+        if queda == 0:
+            return True
+        if queda == antes:
+            print("  (no se borro nada; reintento)")
+        antes = queda
+    return False
+
+
+def crecio(antes, despues, preferido=None):
+    """Nombre del grafo que gano nodos, o None.
+
+    Ignora los grafos que NO existian antes: al compilar, Unreal fabrica
+    grafos-stub por cada evento (EdGraph_28, EdGraph_32...) y aparecen de la
+    nada. Sin este filtro el pegador creia que el pegado habia caido en un
+    stub y lo deshacia, una y otra vez.
+    """
+    if preferido and despues.get(preferido, 0) > antes.get(preferido, 0):
+        return preferido
     for g, n in despues.items():
-        if n > antes.get(g, 0):
+        if g in antes and n > antes[g]:
             return g
     return None
 
@@ -160,11 +191,26 @@ def grafo_activo(asset, titulo):
         time.sleep(1.0)
         despues = censo(asset, "sonda_despues")
         g = crecio(antes, despues)
+        if g is None:
+            # grafo recien creado y vacio: no estaba en el censo anterior
+            for gn, n in despues.items():
+                if gn not in antes and n:
+                    g = gn
+                    break
         if g:
-            deshacer()
-            vuelta = censo(asset, "sonda_vuelta")
-            if vuelta.get(g, 0) > antes.get(g, 0):
-                print("  AVISO: la sonda no se deshizo en %s" % g)
+            # El Ctrl+Z no siempre entra a la primera. Si la sonda sigue ahi
+            # se reintenta: una sonda olvidada es un nodo de basura que se
+            # queda GUARDADO en el asset, y no hay forma de borrar un nodo
+            # suelto por script (remove_unused_nodes no se lleva los
+            # comentarios).
+            for intento in range(4):
+                deshacer(titulo)
+                vuelta = censo(asset, "sonda_vuelta")
+                if vuelta.get(g, 0) <= antes.get(g, 0):
+                    break
+            else:
+                print("  AVISO: la sonda NO se deshizo en %s "
+                      "(queda un comentario suelto)" % g)
             return g
     return None
 
@@ -197,6 +243,9 @@ def main():
     ap.add_argument("fichero")
     ap.add_argument("--esperados", type=int, default=None)
     ap.add_argument("--no-abrir", action="store_true")
+    ap.add_argument("--vaciar", action="store_true",
+                    help="borra TODO el grafo destino antes de pegar "
+                         "(se guarda copia del export previo)")
     a = ap.parse_args()
 
     fichero = a.fichero if os.path.isabs(a.fichero) else os.path.join(RAIZ, a.fichero)
@@ -218,6 +267,18 @@ def main():
         print("FALLOS: 1")
         return 1
 
+    if a.vaciar:
+        copia = os.path.join(SAVED, "PrevioAlVaciado_%s_%s.copy"
+                             % (titulo, a.grafo))
+        import shutil
+        censo(a.asset, "respaldo")
+        shutil.copy(os.path.join(SAVED, "PasteT3D_respaldo.copy"), copia)
+        print("  copia del grafo previo: %s" % copia)
+        if not vaciar_grafo(a.asset, titulo, a.grafo):
+            print("  PROBLEMA: no se pudo vaciar %r" % a.grafo)
+            print("FALLOS: 1")
+            return 1
+
     antes = censo(a.asset, "antes")
     print("  nodos ANTES en %s: %d" % (a.grafo, antes.get(a.grafo, 0)))
 
@@ -227,18 +288,18 @@ def main():
         time.sleep(1.5)
         despues = censo(a.asset, "despues")
         ganados = despues.get(a.grafo, 0) - antes.get(a.grafo, 0)
-        otro = crecio(antes, despues)
+        otro = crecio(antes, despues, preferido=a.grafo)
         if otro and otro != a.grafo:
             print("  PROBLEMA: el pegado entro en %r, no en %r. Deshaciendo."
                   % (otro, a.grafo))
-            deshacer()
+            deshacer(titulo)
             continue
         if ganados:
             print("  nodos DESPUES: %d  (ganados %d, esperados %d)"
                   % (despues.get(a.grafo, 0), ganados, esperados))
             if ganados != esperados:
                 print("  PROBLEMA: Unreal descarto %d nodos." % (esperados - ganados))
-                deshacer()
+                deshacer(titulo)
                 print("FALLOS: 1")
                 return 1
             ok = True

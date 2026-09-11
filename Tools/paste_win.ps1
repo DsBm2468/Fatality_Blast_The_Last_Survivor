@@ -22,11 +22,12 @@ param(
     [double]$FracX = 0.55,
     [double]$FracY = 0.55,
     [switch]$Click,
-    [switch]$SoloClic
+    [switch]$SoloClic,
+    [string]$Enviar = ""
 )
 
 $ErrorActionPreference = 'Stop'
-if (-not $SoloClic -and -not (Test-Path $File)) { Write-Error "no existe $File"; exit 2 }
+if (-not $SoloClic -and $Enviar -eq "" -and -not (Test-Path $File)) { Write-Error "no existe $File"; exit 2 }
 
 Add-Type -Namespace W -Name U -MemberDefinition @'
 [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
@@ -104,7 +105,7 @@ if (-not $destino) {
 Write-Output "DESTINO: '$($destino.T)'"
 
 # --- 2. portapapeles -------------------------------------------------------
-if (-not $SoloClic) {
+if (-not $SoloClic -and $Enviar -eq "") {
 $texto = Get-Content -Raw -Encoding UTF8 $File
 Set-Clipboard -Value $texto
 Start-Sleep -Milliseconds 300
@@ -159,7 +160,38 @@ if ([W.U]::GetForegroundWindow() -ne $destino.H) {
     Write-Error "no se pudo devolver el foco a la ventana destino"; exit 7
 }
 
-# --- 5. Ctrl+V -------------------------------------------------------------
+# --- 5. teclas -------------------------------------------------------------
+# -Enviar manda una combinacion arbitraria DESDE AQUI, es decir con el foco ya
+# puesto en la ventana destino. Mandarla desde otro proceso no funciona: la
+# consola que lo lanza se lleva el foco y la pulsacion se pierde en silencio
+# (asi se perdieron Ctrl+A y Supr, y el grafo no se vaciaba nunca).
+if ($Enviar -ne "") {
+    # OJO: cada pulsacion necesita que el panel del grafo tenga el foco de
+    # TECLADO, y eso solo lo da el clic de esta misma invocacion. Por eso las
+    # combinaciones que dependen una de otra (Ctrl+A y luego Supr) hay que
+    # mandarlas JUNTAS, separadas por ";": si se mandan en dos llamadas, la
+    # segunda llega sin foco y se pierde en silencio, y si se vuelve a hacer
+    # clic para recuperarlo, el clic deselecciona lo que acababa de marcar
+    # Ctrl+A. Asi se perdio media hora con "el grafo no se vacia".
+    $mapa = @{ "a"=0x41; "z"=0x5A; "v"=0x56; "x"=0x58; "c"=0x43; "delete"=0x2E;
+               "tab"=0x09; "enter"=0x0D; "escape"=0x1B; "home"=0x24; "end"=0x23;
+               "f"=0x46 }
+    foreach ($combo in $Enviar.Split(";")) {
+        $partes = $combo.Trim().ToLower().Split("+")
+        $conCtrl = $partes -contains "ctrl"
+        $tecla = $partes | Where-Object { $_ -ne "ctrl" } | Select-Object -First 1
+        if (-not $mapa.ContainsKey($tecla)) { Write-Error "tecla desconocida: $tecla"; exit 8 }
+        if ($conCtrl) { [W.U]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero); Start-Sleep -Milliseconds 80 }
+        [W.U]::keybd_event($mapa[$tecla], 0, 0, [UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 90
+        [W.U]::keybd_event($mapa[$tecla], 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+        Start-Sleep -Milliseconds 80
+        if ($conCtrl) { [W.U]::keybd_event(0x11, 0, $KEYEVENTF_KEYUP, [UIntPtr]::Zero) }
+        Write-Output "ENVIADO: $combo"
+        Start-Sleep -Milliseconds 500
+    }
+    exit 0
+}
 if ($SoloClic) { Write-Output "SOLO CLIC: no se pega"; exit 0 }
 [W.U]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)        # CTRL down
 Start-Sleep -Milliseconds 80
