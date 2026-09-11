@@ -29,6 +29,28 @@ RUTA = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 REFS_INVENTARIO = ("Object_Is_Weapon", "Object_Is_Throwable",
                    "Object_Is_Shield", "Object_Is_FirstAidKit")
 
+
+def valida(g, nombre):
+    """True si ese nodo GARANTIZA que lo siguiente solo corre con un objeto
+    valido. Hay DOS formas de hacerlo en Blueprint, no una:
+
+      - la macro IsValid de la biblioteca estandar;
+      - un **get validado** (`K2Node_VariableGet` con
+        `CurrentVariation = ValidatedObject`), que es un get normal al que se
+        le han sacado pines de ejecucion y una salida `else`.
+
+    Mirar solo la macro daba un falso positivo en el `Remove from Parent` del
+    menu de pausa, que va detras de un get validado de `WidgetPause`.
+    """
+    n = g.get(nombre)
+    if not n:
+        return False
+    if (n.get("class") == "K2Node_MacroInstance"
+            and "IsValid" in n["props"].get("MacroGraphReference", "")):
+        return True
+    return (n.get("class") == "K2Node_VariableGet"
+            and n["props"].get("CurrentVariation", "") == "ValidatedObject")
+
 fallos = []
 
 
@@ -119,9 +141,7 @@ for nm, n in g.items():
         continue
     vivos += 1
     previos = [sin_knots(e) for e in entradas_exec(nm)]
-    guardado = all(g.get(p, {}).get("class") == "K2Node_MacroInstance"
-                   and "IsValid" in g[p]["props"].get("MacroGraphReference", "")
-                   for p in previos) and previos
+    guardado = all(valida(g, p) for p in previos) and previos
     if guardado:
         ok("%s (%s) con IsValid delante" % (nm, var))
     else:
@@ -141,9 +161,7 @@ for nm, n in g.items():
         ok("%s desconectado" % nm)
         continue
     previos = [sin_knots(e) for e in entradas_exec(nm)]
-    if previos and all(g.get(p, {}).get("class") == "K2Node_MacroInstance"
-                       and "IsValid" in g[p]["props"].get("MacroGraphReference", "")
-                       for p in previos):
+    if previos and all(valida(g, p) for p in previos):
         ok("%s con IsValid delante" % nm)
     else:
         mal("%s: Remove from Parent sin IsValid delante (viene de %s)"
@@ -151,22 +169,35 @@ for nm, n in g.items():
 if not hay:
     ok("no hay ningun Remove from Parent en el grafo")
 
-print("\nC) el evento nuevo")
+print("\nC) la cadena validada del cambio de slot")
+# Lo que de verdad importa ya se midio en A: que no quede ni un
+# Set Actor Hidden In Game ALCANZABLE sin IsValid delante. Aqui solo se
+# comprueba que el SwitchInteger viejo quedo fuera de juego y que el punto de
+# entrada con nombre sigue existiendo.
+#
+# OJO: ya NO se exige que Ev_ActualizarEquipo tenga un nodo que lo LLAME.
+# Desde la fusion del 2026-09-11 el cambio de slot entra EN LINEA en la cadena
+# validada, porque una llamada de CONTEXTO PROPIO a una funcion que aun no
+# existe abre al pegar el modal "Arreglar referencias de funciones de contexto
+# propio", y eso bloquea el pegado automatico. El evento se conserva como
+# segunda entrada a la misma cadena, para poder invocarla desde un banco.
 ev = [nm for nm, n in g.items()
       if n["class"] == "K2Node_CustomEvent"
       and n["props"].get("CustomFunctionName", "").strip('"') == "Ev_ActualizarEquipo"]
 if not ev:
-    mal("no existe el evento Ev_ActualizarEquipo")
+    mal("no existe el punto de entrada Ev_ActualizarEquipo")
 else:
-    llamadas = [nm for nm, n in g.items()
-                if n["class"] == "K2Node_CallFunction"
-                and T.mem(n["props"], "FunctionReference") == "Ev_ActualizarEquipo"]
-    if not llamadas:
-        mal("Ev_ActualizarEquipo existe pero no lo llama nadie")
-    elif not any(alcanzable(c) for c in llamadas):
-        mal("Ev_ActualizarEquipo se llama desde codigo inalcanzable")
-    else:
-        ok("Ev_ActualizarEquipo existe y se llama desde %s" % ", ".join(llamadas))
+    ok("existe Ev_ActualizarEquipo (%s)" % ", ".join(ev))
+
+viejos = [nm for nm, n in g.items() if n["class"] == "K2Node_SwitchInteger"]
+vivos = [nm for nm in viejos if alcanzable(nm)]
+if vivos:
+    mal("el SwitchInteger viejo del cambio de slot SIGUE conectado: %s"
+        % ", ".join(vivos))
+elif viejos:
+    ok("el SwitchInteger viejo esta desconectado (%s)" % ", ".join(viejos))
+else:
+    ok("ya no hay ningun SwitchInteger en el grafo")
 
 print("\n" + "=" * 70)
 print("FALLOS: %d" % len(fallos))
