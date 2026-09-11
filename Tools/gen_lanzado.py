@@ -135,8 +135,13 @@ def main():
 
     # ============================================================== (2)
     # Tras el impulso y el temporizador, el objeto sale del inventario.
-    lanzador = g.var_get("Thrower", B.CAT_OBJECT, 900, 1400,
-                         sub_object=B.cls("/Script/Engine.Pawn"))
+    # OJO: NO se usa la variable `Thrower`. Existe y parece la buena, pero su
+    # unico SET esta SUELTO en el grafo, sin cables: nunca se escribe, asi que
+    # siempre vale None y toda esta rama se quedaba sin ejecutar (medido en
+    # PIE: el objeto se desenganchaba pero no salia del inventario).
+    # `Ownersito` si lo escribe la recogida, en BP_Item.Interact.
+    lanzador = g.var_get("Ownersito", B.CAT_OBJECT, 900, 1400,
+                         sub_object=B.cls("/Script/Engine.Actor"))
 
     comp = g.call("GetComponentByClass", "/Script/Engine.Actor", 1200, 1250,
                   pure=True)
@@ -146,7 +151,7 @@ def main():
              default=C_INTERACTION)
     comp.pin("ReturnValue", B.CAT_OBJECT, out=True,
              sub_object=B.cls(C_INTERACTION))
-    lanzador.get("Thrower").to(comp.get("self"))
+    lanzador.get("Ownersito").to(comp.get("self"))
 
     val = g.is_valid(1500, 1100, sub_object=B.cls(C_INTERACTION))
     comp.get("ReturnValue").to(val.get("InputObject"))
@@ -168,7 +173,7 @@ def main():
                  default=C_INVENTARY)
     comp_inv.pin("ReturnValue", B.CAT_OBJECT, out=True,
                  sub_object=B.cls(C_INVENTARY))
-    lanzador.get("Thrower").to(comp_inv.get("self"))
+    lanzador.get("Ownersito").to(comp_inv.get("self"))
 
     val_inv = g.is_valid(2200, 1100, sub_object=B.cls(C_INVENTARY))
     soltar_ref.exec_out.to(val_inv.get("Exec"))

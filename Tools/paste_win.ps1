@@ -175,7 +175,7 @@ if ($Enviar -ne "") {
     # Ctrl+A. Asi se perdio media hora con "el grafo no se vacia".
     $mapa = @{ "a"=0x41; "z"=0x5A; "v"=0x56; "x"=0x58; "c"=0x43; "delete"=0x2E;
                "tab"=0x09; "enter"=0x0D; "escape"=0x1B; "home"=0x24; "end"=0x23;
-               "f"=0x46 }
+               "f"=0x46; "p"=0x50; "g"=0x47; "e"=0x45; "q"=0x51; "r"=0x52 }
     foreach ($combo in $Enviar.Split(";")) {
         $partes = $combo.Trim().ToLower().Split("+")
         $conCtrl = $partes -contains "ctrl"

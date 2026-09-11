@@ -297,11 +297,19 @@ def main():
         if ganados:
             print("  nodos DESPUES: %d  (ganados %d, esperados %d)"
                   % (despues.get(a.grafo, 0), ganados, esperados))
-            if ganados != esperados:
+            if ganados < esperados:
                 print("  PROBLEMA: Unreal descarto %d nodos." % (esperados - ganados))
                 deshacer(titulo)
                 print("FALLOS: 1")
                 return 1
+            if ganados > esperados:
+                # Unreal AÑADE nodos al pegar cuando el texto trae pines de
+                # struct partidos: los materializa como BreakVector2D o
+                # MakeStruct sueltos. Son legitimos. Antes esto se tomaba por
+                # error y se deshacia el pegado entero -- 466 nodos dentro y
+                # el grafo del personaje se quedaba vacio.
+                print("  (Unreal anadio %d nodos auxiliares de pines partidos)"
+                      % (ganados - esperados))
             ok = True
             break
 

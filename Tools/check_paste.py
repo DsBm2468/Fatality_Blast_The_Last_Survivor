@@ -50,22 +50,23 @@ def main(path):
             actual[2].append(campos(m.group(1)))
 
     por_nombre = dict((n[0], n) for n in nodos)
-    pin_de = {}         # PinId -> (nodo, pin)
+    # OJO: los PinId NO son unicos en todo el grafo. Un nodo copiado en el
+    # editor conserva los GUID de sus pines, asi que dos nodos distintos
+    # pueden tener los mismos. Unreal los resuelve DENTRO de cada nodo
+    # (LinkedTo trae nombre de nodo + PinId), asi que aqui hay que hacer lo
+    # mismo: un mapa global daba 337 "enlaces no reciprocos" que no existian.
+    pines_de = {}       # nodo -> {PinId: nombre_de_pin}
     problemas = []
 
     for nombre in repetidos:
         problemas.append("nombre de nodo repetido: %s" % nombre)
 
     for nombre, clase, pins in nodos:
+        d = pines_de.setdefault(nombre, {})
         for p in pins:
             pid = p.get("PinId", "")
-            if not pid:
-                continue
-            if pid in pin_de:
-                problemas.append("PinId repetido %s (%s.%s y %s.%s)"
-                                 % (pid, pin_de[pid][0], pin_de[pid][1],
-                                    nombre, p.get("PinName")))
-            pin_de[pid] = (nombre, p.get("PinName", "").strip('"'))
+            if pid:
+                d[pid] = p.get("PinName", "").strip('"')
 
     enlaces = []        # (nodo_origen, pin_origen_id, nodo_destino, pin_destino_id)
     for nombre, clase, pins in nodos:
@@ -80,16 +81,10 @@ def main(path):
                         "%s.%s enlaza con el nodo %s, que NO esta en el fichero"
                         % (nombre, p.get("PinName", "").strip('"'), destino))
                     continue
-                if pid not in pin_de:
+                if pid not in pines_de.get(destino, {}):
                     problemas.append(
-                        "%s.%s enlaza con un PinId que no existe (%s en %s)"
+                        "%s.%s enlaza con el pin %s, que no existe en %s"
                         % (nombre, p.get("PinName", "").strip('"'), pid, destino))
-                    continue
-                if pin_de[pid][0] != destino:
-                    problemas.append(
-                        "%s.%s dice que el pin %s es de %s, pero es de %s"
-                        % (nombre, p.get("PinName", "").strip('"'), pid,
-                           destino, pin_de[pid][0]))
                     continue
                 enlaces.append((nombre, p.get("PinId"), destino, pid))
 
@@ -99,8 +94,8 @@ def main(path):
         if (c, d, a, b) not in conjunto:
             problemas.append("enlace NO reciproco: %s.%s -> %s.%s "
                              "(el destino no lo declara)"
-                             % (a, pin_de.get(b, ("", "?"))[1], c,
-                                pin_de.get(d, ("", "?"))[1]))
+                             % (a, pines_de.get(a, {}).get(b, "?"), c,
+                                pines_de.get(c, {}).get(d, "?")))
 
     # pines de datos de entrada con mas de un origen
     entradas = {}
@@ -122,7 +117,8 @@ def main(path):
                     % (nombre, p.get("PinName", "").strip('"'), n))
 
     print("nodos: %d   pines: %d   enlaces: %d"
-          % (len(nodos), len(pin_de), len(enlaces) // 2))
+          % (len(nodos), sum(len(v) for v in pines_de.values()),
+             len(enlaces) // 2))
     for p in problemas:
         print("   PROBLEMA: %s" % p)
     print("PROBLEMAS: %d" % len(problemas))
