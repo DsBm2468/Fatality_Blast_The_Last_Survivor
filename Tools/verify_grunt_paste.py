@@ -239,6 +239,7 @@ DESTINO = [
                "FixedInteractables/BP_Item"),
     ("_Inventary_", "/Game/ThirdPerson/Components/BPC_Inventary"),
     ("_Interaction_", "/Game/ThirdPerson/Components/BPC_Interaction"),
+    ("_HUD_", "/Game/ThirdPerson/Blueprints/WBP/HUB/WBP_HUB_Inventary"),
     ("_Throw", "/Game/ThirdPerson/Blueprints/Interactables/"
                "FixedInteractables/BP_Item_Throwable_Base"),
 ]

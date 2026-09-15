@@ -141,6 +141,51 @@ def hueco(indice):
             return None, None
 
 
+# --- HUD -------------------------------------------------------------
+# (indice del hueco, SizeBox de la casilla, Image del icono). Los nombres son
+# los del arbol de WBP_HUB_Inventary.
+HUD = [(0, "Arm", "IMG-ConvencionalGun"),
+       (1, "Throwable", "IMG-Grenade"),
+       (2, "Shield", "IMG-BulletproofShield"),
+       (3, "FirstAidKit", "IMG-FirstAidKit")]
+
+
+def hud():
+    """El widget de inventario que tiene el jugador, o None."""
+    p = pawn()
+    if p is None:
+        return None
+    try:
+        return p.get_editor_property("WBP HUB inventary")
+    except Exception:
+        return None
+
+
+def icono_visible(indice):
+    """True si el icono de ese hueco esta encendido en el HUD."""
+    w = hud()
+    if w is None:
+        return None
+    _, _, img = HUD[indice]
+    try:
+        v = w.get_editor_property(img).get_editor_property("visibility")
+    except Exception as e:
+        nota("no se puede leer la visibilidad de %s: %s" % (img, e))
+        return None
+    return "HIDDEN" not in str(v).upper() and "COLLAPSED" not in str(v).upper()
+
+
+def opacidad_hueco(indice):
+    w = hud()
+    if w is None:
+        return None
+    _, caja, _ = HUD[indice]
+    try:
+        return round(w.get_editor_property(caja).get_editor_property("render_opacity"), 2)
+    except Exception:
+        return None
+
+
 def equipado():
     c = comp(P_INTER)
     if c is None:
@@ -264,6 +309,13 @@ def paso_base():
           "%d" % len(actores(P_GUN)))
     check("base", "hay granadas de prueba en el nivel",
           len(actores(P_GRANADA)) >= 2, "%d" % len(actores(P_GRANADA)))
+    # El HUD: con el inventario vacio no puede haber ningun icono encendido.
+    # Es justo lo que fallaba el 2026-09-15: las cuatro casillas se veian pero
+    # las imagenes estaban SIEMPRE en HIDDEN, y nada las encendia nunca.
+    check("base", "el jugador tiene el widget de inventario", hud() is not None)
+    encendidos = [i for i in range(4) if icono_visible(i)]
+    check("base", "con el inventario vacio no hay ningun icono encendido",
+          encendidos == [], "encendidos: %s" % encendidos)
 
 
 # =====================================================================
@@ -322,6 +374,14 @@ def paso_c1_check():
     check("c1", "el arma sale de la lista de interactuables",
           arma is not None and arma not in en_rango(),
           "%d en rango" % len(en_rango()))
+    check("c1", "el HUD enciende el icono del hueco del arma",
+          icono_visible(0) is True)
+    check("c1", "y NO enciende los otros tres",
+          [i for i in (1, 2, 3) if icono_visible(i)] == [],
+          "encendidos: %s" % [i for i in (1, 2, 3) if icono_visible(i)])
+    check("c1", "el hueco seleccionado se resalta y los demas se atenuan",
+          opacidad_hueco(0) == 1.0 and opacidad_hueco(1) < 1.0,
+          "opacidades: %s" % [opacidad_hueco(i) for i in range(4)])
 
 
 # =====================================================================
@@ -361,6 +421,7 @@ def paso_c2_check():
               "padre=%s" % (padre.get_name() if padre else "None"))
         check("c2", "el arma vuelve a estar en rango", arma in en_rango(),
               "%d en rango" % len(en_rango()))
+    check("c2", "el HUD apaga el icono al soltar", icono_visible(0) is False)
 
 
 # =====================================================================
@@ -397,6 +458,8 @@ def paso_c3_check():
     cant0, _ = hueco(0)
     check("c3", "el hueco 0 sigue vacio: cada categoria va a su hueco",
           cant0 == 0, "cantidad hueco 0=%s" % cant0)
+    check("c3", "el HUD enciende el icono del lanzable", icono_visible(1) is True)
+    check("c3", "y el del arma sigue apagado", icono_visible(0) is False)
 
 
 # =====================================================================
@@ -439,6 +502,7 @@ def paso_c4_check():
     cant, _ = hueco(1)
     check("c4", "el hueco 1 queda vacio tras lanzar", cant == 0,
           "cantidad=%s" % cant)
+    check("c4", "el HUD apaga el icono del lanzable", icono_visible(1) is False)
 
 
 # =====================================================================
