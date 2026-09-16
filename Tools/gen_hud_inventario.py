@@ -45,8 +45,19 @@ F_CANT = "QuantityOfItems_14_A2D5A7E347FE828C140D7A8803F2F6FA"
 F_CLASE = "ItemClass_17_525F5B33449D92EF0134CBB90F9F2E2A"
 C_ITEM = ("/Game/ThirdPerson/Blueprints/Interactables/"
           "FixedInteractables/BP_Item.BP_Item_C")
+C_ARMA = ("/Game/ThirdPerson/Blueprints/Interactables/FixedInteractables/"
+          "BP_Item_Weapon_Base.BP_Item_Weapon_Base_C")
 
 UMG_WIDGET = "/Script/UMG.Widget"
+UMG_TEXTO = "/Script/UMG.TextBlock"
+STR_LIB = "/Script/Engine.KismetStringLibrary"
+TXT_LIB = "/Script/Engine.KismetTextLibrary"
+# El TextBlock de las balas. No esta marcado como "variable" en el Disenador
+# (`bIsVariable` es protegida y no se puede tocar desde Python), pero el
+# compilador de UMG engancha por NOMBRE cualquier propiedad de objeto de la
+# clase con el widget del arbol que se llame igual. Lo crea
+# `Tools/build_hud_munition.py`, y el enganche esta medido en PIE.
+N_TEXTO = "TXT_Munition"
 E_VIS = "/Script/UMG.ESlateVisibility"
 MATH = "/Script/Engine.KismetMathLibrary"
 
@@ -62,6 +73,85 @@ HUECOS = [
 
 OPACO = "1.000000"      # el hueco seleccionado
 TENUE = "0.350000"      # los demas
+
+
+def texto_balas(g, x, y, visible):
+    """Pone (o quita) el rotulo de balas del hueco del arma."""
+    n = g.call("SetVisibility", UMG_WIDGET, x, y)
+    n.pin("self", B.CAT_OBJECT, sub_object=B.cls(UMG_WIDGET))
+    n.pin("InVisibility", B.CAT_BYTE, sub_object=B.obj("Enum", E_VIS),
+          default="Visible" if visible else "Hidden")
+    t = g.var_get(N_TEXTO, B.CAT_OBJECT, x, y + 190,
+                  sub_object=B.cls(UMG_TEXTO))
+    t.get(N_TEXTO).to(n.get("self"))
+    return n
+
+
+def municion(g, pin_item, encender, apagar, y):
+    """Escribe "cargador / maximo" encima del icono del arma.
+
+    `pin_item` es el `ItemClass` del hueco 0, que pese al nombre guarda la
+    REFERENCIA al item recogido, no su clase. Se castea a
+    `BP_Item_Weapon_Base` porque ahi viven `CurrentMunition` y `MaxMunition`
+    (las creo `build_reload_system.py` para la recarga de la tecla R).
+
+    Devuelve (nodo_final_rama_ocupada, nodo_final_rama_vacia), para que el
+    resaltado del hueco seleccionado siga enganchando detras.
+    """
+    cast = g.cast(C_ARMA, 2600, y)
+    encender.exec_out.to(cast.exec_in)
+    pin_item.to(cast.get("Object"))
+
+    actual = g.var_get_target("CurrentMunition", B.CAT_INT, C_ARMA, 2600, y + 250)
+    maximo = g.var_get_target("MaxMunition", B.CAT_INT, C_ARMA, 2600, y + 390)
+    cast.get("AsTarget").to(actual.get("self"))
+    cast.get("AsTarget").to(maximo.get("self"))
+
+    def a_texto(pin, x, yy):
+        n = g.call("Conv_IntToString", STR_LIB, x, yy, pure=True)
+        n.pin("InInt", B.CAT_INT)
+        n.pin("ReturnValue", B.CAT_STRING, out=True)
+        pin.to(n.get("InInt"))
+        return n
+
+    s1 = a_texto(actual.get("CurrentMunition"), 2900, y + 250)
+    s2 = a_texto(maximo.get("MaxMunition"), 2900, y + 390)
+
+    def concat(a, b, x, yy, literal=None):
+        n = g.call("Concat_StrStr", STR_LIB, x, yy, pure=True)
+        n.pin("A", B.CAT_STRING)
+        n.pin("B", B.CAT_STRING, default=literal or "")
+        n.pin("ReturnValue", B.CAT_STRING, out=True)
+        a.to(n.get("A"))
+        if b is not None:
+            b.to(n.get("B"))
+        return n
+
+    c1 = concat(s1.get("ReturnValue"), None, 3200, y + 250, literal=" / ")
+    c2 = concat(c1.get("ReturnValue"), s2.get("ReturnValue"), 3460, y + 250)
+
+    a_text = g.call("Conv_StringToText", TXT_LIB, 3720, y + 250, pure=True)
+    a_text.pin("InString", B.CAT_STRING)
+    a_text.pin("ReturnValue", B.CAT_TEXT, out=True)
+    c2.get("ReturnValue").to(a_text.get("InString"))
+
+    poner = g.call("SetText", UMG_TEXTO, 3980, y)
+    poner.pin("self", B.CAT_OBJECT, sub_object=B.cls(UMG_TEXTO))
+    poner.pin("InText", B.CAT_TEXT)
+    caja = g.var_get(N_TEXTO, B.CAT_OBJECT, 3980, y + 190,
+                     sub_object=B.cls(UMG_TEXTO))
+    caja.get(N_TEXTO).to(poner.get("self"))
+    a_text.get("ReturnValue").to(poner.get("InText"))
+    cast.get("then").to(poner.exec_in)
+
+    ver = texto_balas(g, 4300, y, True)
+    poner.exec_out.to(ver.exec_in)
+
+    # sin arma (o si el cast falla: el hueco 0 tiene algo que no es un arma)
+    sin = texto_balas(g, 4300, y + 560, False)
+    apagar.exec_out.to(sin.exec_in)
+    cast.get("CastFailed").to(sin.exec_in)
+    return ver, sin
 
 
 def main():
@@ -168,9 +258,18 @@ def main():
         igual.pin("ReturnValue", B.CAT_BOOL, out=True)
         seleccion.get("ValueOptionInventary").to(igual.get("A"))
 
+        # 1.bis) SOLO el hueco del arma: pintar las balas encima del icono.
+        #        "cargador / reserva" no: el GDD cuenta balas en el cargador y
+        #        en la reserva, y lo que se quiere ver de un vistazo es
+        #        "lo que tengo / lo que cabe".
+        if indice == 0:
+            arriba, abajo = municion(g, romper.get(F_CLASE), encender, apagar, y)
+        else:
+            arriba, abajo = encender, apagar
+
         rama2 = g.branch(1700, y)
-        encender.exec_out.to(rama2.exec_in)
-        apagar.exec_out.to(rama2.exec_in)
+        arriba.exec_out.to(rama2.exec_in)
+        abajo.exec_out.to(rama2.exec_in)
         igual.get("ReturnValue").to(rama2.get("Condition"))
 
         def opacidad(x, yy, v):

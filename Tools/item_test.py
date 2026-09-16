@@ -175,6 +175,29 @@ def icono_visible(indice):
     return "HIDDEN" not in str(v).upper() and "COLLAPSED" not in str(v).upper()
 
 
+def balas_hud():
+    """(texto, visible) del rotulo de balas del hueco del arma.
+
+    `TXT_Munition` no esta marcado como variable en el Disenador (`bIsVariable`
+    es protegida y no se toca desde Python), pero el compilador de UMG engancha
+    por NOMBRE las propiedades de objeto de la clase con los widgets del arbol,
+    asi que se lee igual. Lo crea `Tools/build_hud_munition.py`.
+    """
+    w = hud()
+    if w is None:
+        return None, None
+    try:
+        t = w.get_editor_property("TXT_Munition")
+    except Exception as e:
+        nota("no se puede leer TXT_Munition: %s" % e)
+        return None, None
+    if t is None:
+        return None, None
+    v = str(t.get_editor_property("visibility")).upper()
+    visible = "HIDDEN" not in v and "COLLAPSED" not in v
+    return str(t.get_text()), visible
+
+
 def opacidad_hueco(indice):
     w = hud()
     if w is None:
@@ -228,6 +251,25 @@ def paso_pie_on():
     if not les.is_in_play_in_editor():
         les.editor_request_begin_play()
     print("   .. PIE arrancando")
+
+
+def paso_sin_freno():
+    """Quita el freno de CPU del editor en segundo plano.
+
+    SIN ESTO EL MUNDO DE PIE NO TICKEA. Medido el 2026-09-15: con el editor de
+    fondo, GetRealTimeSeconds se queda en 0.0, el jugador NO cae desde 600
+    unidades de altura, y un AddImpulse directo deja la velocidad en (0,0,0).
+    O sea que todo lo que dependa del tiempo o de la fisica se mide en un mundo
+    CONGELADO y no falla nunca: el banco daba verde sin ejercitarlo.
+
+    Lo sincrono (Interact, Ev_SoltarEquipado, UseItem, ReactionOfItem) si se
+    ejecuta, porque son llamadas directas."""
+    w = gw()
+    for cmd in ("Slate.bAllowThrottling 0", "t.IdleWhenNotForeground 0"):
+        unreal.SystemLibrary.execute_console_command(w, cmd)
+    check("base", "el mundo de PIE tickea (freno de CPU quitado)",
+          unreal.GameplayStatics.get_real_time_seconds(w) >= 0.0)
+    print("   .. freno de CPU quitado")
 
 
 def paso_preparar():
@@ -379,6 +421,13 @@ def paso_c1_check():
     check("c1", "y NO enciende los otros tres",
           [i for i in (1, 2, 3) if icono_visible(i)] == [],
           "encendidos: %s" % [i for i in (1, 2, 3) if icono_visible(i)])
+    txt, vis = balas_hud()
+    check("c1", "el HUD ensena las balas del arma recogida",
+          vis is True and txt not in (None, ""), "TXT_Munition=%r visible=%s"
+          % (txt, vis))
+    check("c1", "y las ensena como 'cargador / maximo'",
+          bool(txt) and "/" in txt and txt.replace(" ", "").split("/")[0].isdigit(),
+          "TXT_Munition=%r" % txt)
     check("c1", "el hueco seleccionado se resalta y los demas se atenuan",
           opacidad_hueco(0) == 1.0 and opacidad_hueco(1) < 1.0,
           "opacidades: %s" % [opacidad_hueco(i) for i in range(4)])
@@ -422,6 +471,9 @@ def paso_c2_check():
         check("c2", "el arma vuelve a estar en rango", arma in en_rango(),
               "%d en rango" % len(en_rango()))
     check("c2", "el HUD apaga el icono al soltar", icono_visible(0) is False)
+    txt, vis = balas_hud()
+    check("c2", "y esconde el contador de balas al soltar el arma",
+          vis is False, "TXT_Munition=%r visible=%s" % (txt, vis))
 
 
 # =====================================================================
@@ -503,6 +555,45 @@ def paso_c4_check():
     check("c4", "el hueco 1 queda vacio tras lanzar", cant == 0,
           "cantidad=%s" % cant)
     check("c4", "el HUD apaga el icono del lanzable", icono_visible(1) is False)
+    if gr is not None:
+        medir_vuelo(gr)
+
+
+def medir_vuelo(gr):
+    """El objeto lanzado tiene que VOLAR ENTERO.
+
+    El fallo que arregla esta comprobacion (medido en PIE el 2026-09-15): la
+    fisica se aplicaba a `StaticMesh`, que NO era el root (lo era un
+    `DefaultSceneRoot`, un SceneComponent que no puede simular). Unreal
+    desengancha un componente que simula y no es raiz, asi que **la malla salia
+    volando y el actor se quedaba clavado en la mano**, con su esfera de
+    interaccion encima del personaje:
+
+        1 s tras lanzar   actor=(436,-1474,93)   malla=(1244,-1239,62)
+
+    Por eso "el personaje sigue con el objeto" aunque el objeto ya no este en
+    el inventario. Ahora `StaticMesh` es el root de `BP_Item`.
+    """
+    p = pawn()
+    if p is None:
+        check("c4", "hay jugador para medir el vuelo", False)
+        return
+    try:
+        pos_actor = gr.get_actor_location()
+        malla = gr.get_component_by_class(unreal.StaticMeshComponent)
+        pos_malla = malla.get_world_location() if malla else pos_actor
+        d_jugador = pos_actor.distance(p.get_actor_location())
+        d_malla = pos_actor.distance(pos_malla)
+    except Exception as e:
+        check("c4", "se puede medir el vuelo del objeto lanzado", False, e)
+        return
+    check("c4", "el ACTOR se aleja del jugador al lanzar (no solo la malla)",
+          d_jugador > 300,
+          "actor=(%d,%d,%d), jugador a %d UU"
+          % (pos_actor.x, pos_actor.y, pos_actor.z, d_jugador))
+    check("c4", "la malla viaja CON el actor, no suelta", d_malla < 50,
+          "actor y malla separados %d UU (malla=(%d,%d,%d))"
+          % (d_malla, pos_malla.x, pos_malla.y, pos_malla.z))
 
 
 # =====================================================================
@@ -566,6 +657,7 @@ def paso_c6_fuera():
 # =====================================================================
 PASOS = {
     "reset": paso_reset, "pie_off": paso_pie_off, "pie_on": paso_pie_on,
+    "sin_freno": paso_sin_freno,
     "preparar": paso_preparar, "base": paso_base,
     "c1_acercar": paso_c1_acercar, "c1_recoger": paso_c1_recoger,
     "c1_check": paso_c1_check,

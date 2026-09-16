@@ -16,7 +16,8 @@ Que comprueba, y por que cada cosa:
         lista, para poder recogerla otra vez sin salir del radio
   c3    recoger una granada va al hueco 1 y NO pisa el hueco 0: cada categoria
         tiene el suyo
-  c4    lanzar desengancha, libera EquippedItem y vacia el hueco
+  c4    lanzar desengancha, libera EquippedItem, vacia el hueco y el
+        objeto vuela ENTERO (actor + malla), no solo la malla
   c5    la explosion alcanza a los TRES peones del radio. Es la prueba del
         fallo de fondo del sistema de lanzado: SphereTraceSingleForObjects
         devolvia uno solo
@@ -60,7 +61,7 @@ PY_UE = os.environ.get(
 # (paso, segundos de espera DESPUES)
 BLOQUES = [
     ("fase 0", [("reset", 0), ("pie_off", 3), ("preparar", 2)]),
-    ("arranque", [("pie_on", 7), ("base", 0)]),
+    ("arranque", [("pie_on", 7), ("sin_freno", 1), ("base", 0)]),
     ("c1 - recoger arma", [
         ("c1_acercar", 1.2), ("c1_recoger", 1.2), ("c1_check", 0)]),
     ("c2 - soltar", [
