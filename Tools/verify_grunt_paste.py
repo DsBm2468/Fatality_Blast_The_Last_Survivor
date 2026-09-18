@@ -231,9 +231,17 @@ DESTINO = [
     ("Grunt_Muerte", "/Game/ThirdPerson/Blueprints/BP_Grunt"),
     ("20_Gun_", "/Game/ThirdPerson/Blueprints/Interactables/BP_ConventionalGun"),
     ("21_Ammo_", "/Game/ThirdPerson/Blueprints/Interactables/BP_MunitionConventionalGun"),
-    ("22_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
-    ("23_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
+    # por marca generica: "40_Char_Crouch" se estaba resolviendo contra el
+    # controlador de la IA por no llevar prefijo numerico conocido (2026-09-08)
+    ("_Char_", "/Game/ThirdPerson/Blueprints/BP_ThirdPersonCharacter"),
     ("30_AIC_", "/Game/ThirdPerson/AI/BP_GruntAIController"),
+    ("_Item_", "/Game/ThirdPerson/Blueprints/Interactables/"
+               "FixedInteractables/BP_Item"),
+    ("_Inventary_", "/Game/ThirdPerson/Components/BPC_Inventary"),
+    ("_Interaction_", "/Game/ThirdPerson/Components/BPC_Interaction"),
+    ("_HUD_", "/Game/ThirdPerson/Blueprints/WBP/HUB/WBP_HUB_Inventary"),
+    ("_Throw", "/Game/ThirdPerson/Blueprints/Interactables/"
+               "FixedInteractables/BP_Item_Throwable_Base"),
 ]
 _CACHE = {}
 
@@ -369,9 +377,15 @@ else:
                     ms = RE_SELFCTX.search(body)
                     if ms:
                         fn = ms.group(1)
-                        if fn not in EVENTOS:
-                            mal("%s: llama a '%s' y ningun pegado lo define"
-                                % (name, fn))
+                        # bSelfContext=True tambien lo usan las funciones
+                        # HEREDADAS (SetActorHiddenInGame vive en AActor). Si
+                        # el CDO del destino la expone, la llamada es buena;
+                        # sin esto salian 4 falsos positivos (2026-09-08).
+                        heredada = (cdo_propio is not None
+                                    and hasattr(cdo_propio, camel_a_snake(fn)))
+                        if fn not in EVENTOS and not heredada:
+                            mal("%s: llama a '%s', no lo define ningun pegado "
+                                "y %s no lo hereda" % (name, fn, nombre_destino))
 
             # ---- variables
             if kind in ("K2Node_VariableGet", "K2Node_VariableSet"):

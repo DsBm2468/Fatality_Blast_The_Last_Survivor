@@ -80,3 +80,7 @@ Tools/__pycache__/
 # Estado efimero del banco de pruebas
 Tools/_paso.txt
 Saved/_lab_state.json
+
+# ficheros de trabajo de los bancos de pruebas (el paso en curso)
+Tools/_paso.txt
+Tools/_paso_item.txt

@@ -1,0 +1,10 @@
+Begin Object Class=/Script/UnrealEd.EdGraphNode_Comment Name="EdGraphNode_Comment_marca_1"
+   NodeWidth=300
+   NodeHeight=120
+   CommentColor=(R=0.000000,G=0.000000,B=0.000000,A=0.400000)
+   NodeComment="SONDA_DE_FOCO_CLAUDE"
+   bCommentBubbleVisible_InDetailsPanel=False
+   NodePosX=-4000
+   NodePosY=-4000
+   NodeGuid=3035E9AB85AE158157C6E1CEDD8F2082
+End Object
