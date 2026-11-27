@@ -34,7 +34,7 @@
   - **DirectX:** 12
   - **Disco:** SSD · 5 GB libres
     
-- **Ejecución:** [Abrir el `.uproject` en Unreal Engine o ejecutar el build/`.exe` correspondiente].
+- **Ejecución:** Abrir el `.uproject` en Unreal Engine o ejecutar el build/`.exe` correspondiente.
 
 ## Créditos
 - **Diana Sofia Benavides Monroy:** Creadora del juego y de la idea original del proyecto, diseño general, desarrollo de la programación base, implementación de sonidos y dirección de la propuesta.
