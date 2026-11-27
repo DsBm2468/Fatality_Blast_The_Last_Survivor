@@ -11,7 +11,7 @@
 - **Disparar / Lanzar:** Clic izquierdo mientras se apunta *(mando: `RT`)*
 - **Recargar:** `R` *(mando: `RB`)*
 - **Interactuar:** `E` *(mando: `X`)*
-- **Selección de inventario:** `1`, `2`, `G` (escudo antibalas / parry con clic izquierdo) y `Q` (curación manteniendo clic izquierdo) *(mando: `Y`, cruceta arriba, `LB` y `B`)*
+- **Selección de inventario:** `1`(armamento / disparar con clic izquierdo), `2`(armamento lanzable / lanzar con clic izquierdo) **(Estas primeras secciones del inventario se activan con la fila numérica superior del teclado)**, `G` (escudo antibalas) y `Q` (curación manteniendo clic izquierdo) *(mando: `Y`, cruceta arriba, `LB` y `B`)*
 - **Soltar objeto:** `F` *(mando: cruceta abajo)*
 - **Pausa:** `P` *(mando: botón Menú)*
 
